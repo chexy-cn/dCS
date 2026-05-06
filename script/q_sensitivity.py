@@ -66,7 +66,7 @@ def main():
     """运行所有探测器和质量比组合。"""
     date = 20260506
     detectors = ['aLIGO', 'TianQin', 'CE', 'LISA', 'ET', 'Taiji', 'BBO', 'DECIGO']
-    q_values = np.linspace(1.0, 10.0, 91)
+    q_values = np.arange(1.2, 8.9 + 0.05, 0.1)
 
     M_total_n = 100.0
     D_l_mpc = 100.0

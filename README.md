@@ -116,7 +116,7 @@ python script/q_sensitivity.py
 
 `script/tc_sensitivity.py` 固定总质量 `100 Msun`、光度距离 `100 Mpc`、质量比 `q=1.2`、自旋和倾角，只改变 `T_tc = 0.25, 0.5, 1, 5 yr`，输出 `data/<date>/results/tc_sensitivity.csv`。
 
-`script/q_sensitivity.py` 固定总质量 `100 Msun`、光度距离 `100 Mpc`、观测时间 `T_tc=0.25 yr`、自旋和倾角，只扫描 `q = 1 ... 10`，输出 `data/<date>/results/q_sensitivity.csv`。
+`script/q_sensitivity.py` 固定总质量 `100 Msun`、光度距离 `100 Mpc`、观测时间 `T_tc=0.25 yr`、自旋和倾角，只扫描 `q = 1.2 ... 8.9`，间隔 `0.1`，输出 `data/<date>/results/q_sensitivity.csv`。
 
 两个输出文件都会记录 `f_low`、`f_high`、`deltaF`、SNR、`sigma_alpha_dCS_bar_square` 和 `d_sqrt_alpha_dCS_km`，可直接用于画敏感性曲线或写入回复审稿人的表格。
 
