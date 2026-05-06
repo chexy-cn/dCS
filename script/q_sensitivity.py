@@ -86,6 +86,7 @@ def main():
         [iota],
     ))
     ncpu = max(1, min(30, len(param_space)))
+    print(f"q range: {q_values[0]:.1f} to {q_values[-1]:.1f}, step=0.1, tasks={len(param_space)}, ncpu={ncpu}")
 
     with Pool(processes=ncpu) as pool:
         results = list(tqdm(pool.imap_unordered(process_task, param_space), total=len(param_space)))
