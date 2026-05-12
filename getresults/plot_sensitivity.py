@@ -27,6 +27,8 @@ DETECTOR_STYLE = {
 }
 T_OBS_TICKS = [1 / 365.25, 7 / 365.25, 1 / 12, 0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
 T_OBS_LABELS = ['1 d', '1 wk', '1 mo', '3 mo', '0.5', '1', '2', '3', '4', '5']
+GROUND_DETECTORS = {'aLIGO', 'ET', 'CE'}
+SPACE_LIKE_DETECTORS = {'TianQin', 'LISA', 'Taiji', 'DECIGO', 'BBO'}
 
 
 def read_csv_rows(file_path):
@@ -74,36 +76,51 @@ def make_legend(ax):
     )
 
 
-def make_combined_legends(ax):
-    """为合并图添加探测器图例和物理量线型图例。"""
+def make_combined_legends(detector_ax, flow_ax):
+    """为合并图添加探测器图例和低频截止分组图例。"""
     detector_handles = [
         Line2D([0], [0], label=detector, linewidth=2.0, markersize=6, **DETECTOR_STYLE[detector])
         for detector in DETECTOR_ORDER
     ]
-    detector_legend = ax.legend(
+    detector_ax.legend(
         handles=detector_handles,
-        fontsize=11,
-        ncol=4,
-        loc='upper center',
-        bbox_to_anchor=(0.5, -0.24),
+        fontsize=9,
+        ncol=2,
+        loc='upper right',
         framealpha=0.9,
     )
-    ax.add_artist(detector_legend)
 
     quantity_handles = [
-        Line2D([0], [0], color='black', linestyle='-', linewidth=2.2,
-               label=r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}$'),
-        Line2D([0], [0], color='black', linestyle=':', linewidth=2.2, alpha=0.55,
-               label=r'$f_{\mathrm{low}}$ or SNR'),
+        Line2D([0], [0], color='dimgray', linestyle=':', linewidth=2.2,
+               label=r'$f_{\mathrm{low}}$: ground-based'),
+        Line2D([0], [0], color='saddlebrown', linestyle=':', linewidth=2.2,
+               label=r'$f_{\mathrm{low}}$: space/BBO/DECIGO'),
     ]
-    ax.legend(
+    flow_ax.legend(
         handles=quantity_handles,
-        fontsize=11,
-        ncol=2,
-        loc='upper center',
-        bbox_to_anchor=(0.5, -0.42),
+        fontsize=9,
+        ncol=1,
+        loc='upper right',
         framealpha=0.9,
     )
+
+
+def plot_observation_time_flow_groups(ax, tc_grouped):
+    """在观测时间 panel 的右轴上绘制两类低频截止线。"""
+    space_rows = next((tc_grouped[detector] for detector in DETECTOR_ORDER
+                       if detector in SPACE_LIKE_DETECTORS and tc_grouped.get(detector)), [])
+    ground_rows = next((tc_grouped[detector] for detector in DETECTOR_ORDER
+                        if detector in GROUND_DETECTORS and tc_grouped.get(detector)), [])
+
+    if space_rows:
+        x = np.array([row['T_tc_year'] for row in space_rows])
+        y = np.array([row['f_low_Hz'] for row in space_rows])
+        ax.plot(x, y, color='saddlebrown', linestyle=':', linewidth=2.8, alpha=0.85)
+
+    if ground_rows:
+        x = np.array([row['T_tc_year'] for row in ground_rows])
+        y = np.array([row['f_low_Hz'] for row in ground_rows])
+        ax.plot(x, y, color='dimgray', linestyle=':', linewidth=2.8, alpha=0.85)
 
 
 def plot_combined_sensitivity(date):
@@ -126,9 +143,7 @@ def plot_combined_sensitivity(date):
         if rows:
             x = np.array([row['T_tc_year'] for row in rows])
             y_constraint = np.array([row['d_sqrt_alpha_dCS_km'] for row in rows])
-            y_flow = np.array([row['f_low_Hz'] for row in rows])
             ax_tc.plot(x, y_constraint, linewidth=2.1, markersize=5.6, label=detector, **style)
-            ax_tc_right.plot(x, y_flow, color=color, linestyle=':', linewidth=2.0, alpha=0.32)
 
         rows = q_grouped.get(detector, [])
         if rows:
@@ -137,6 +152,8 @@ def plot_combined_sensitivity(date):
             y_snr = np.array([row['SNR'] for row in rows])
             ax_q.plot(x, y_constraint, linewidth=2.1, markersize=3.0, markevery=10, label=detector, **style)
             ax_q_right.plot(x, y_snr, color=color, linestyle=':', linewidth=2.0, alpha=0.32)
+
+    plot_observation_time_flow_groups(ax_tc_right, tc_grouped)
 
     ax_tc.set_xlabel(r'$T_{\mathrm{obs}}~[\mathrm{yr}]$', fontsize=16)
     ax_tc.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
@@ -162,9 +179,9 @@ def plot_combined_sensitivity(date):
     style_axes(ax_q)
     ax_q_right.tick_params(axis='y', labelsize=14, colors='dimgray')
 
-    make_combined_legends(ax_q)
+    make_combined_legends(ax_q, ax_tc)
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.36, wspace=0.52)
+    fig.subplots_adjust(bottom=0.18, wspace=0.52)
 
     output_dir = f'./data/{date}/fig/'
     os.makedirs(output_dir, exist_ok=True)
