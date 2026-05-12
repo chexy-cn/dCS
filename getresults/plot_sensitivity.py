@@ -74,6 +74,105 @@ def make_legend(ax):
     )
 
 
+def make_combined_legends(ax):
+    """为合并图添加探测器图例和物理量线型图例。"""
+    detector_handles = [
+        Line2D([0], [0], label=detector, linewidth=2.0, markersize=6, **DETECTOR_STYLE[detector])
+        for detector in DETECTOR_ORDER
+    ]
+    detector_legend = ax.legend(
+        handles=detector_handles,
+        fontsize=11,
+        ncol=4,
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.24),
+        framealpha=0.9,
+    )
+    ax.add_artist(detector_legend)
+
+    quantity_handles = [
+        Line2D([0], [0], color='black', linestyle='-', linewidth=2.2,
+               label=r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}$'),
+        Line2D([0], [0], color='black', linestyle=':', linewidth=2.2, alpha=0.55,
+               label=r'$f_{\mathrm{low}}$ or SNR'),
+    ]
+    ax.legend(
+        handles=quantity_handles,
+        fontsize=11,
+        ncol=2,
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.42),
+        framealpha=0.9,
+    )
+
+
+def plot_combined_sensitivity(date):
+    """绘制一张包含约束和诊断量的双纵轴敏感性图。"""
+    tc_rows = read_csv_rows(f'./data/{date}/results/tc_sensitivity.csv')
+    q_rows = read_csv_rows(f'./data/{date}/results/q_sensitivity.csv')
+    tc_grouped = group_by_detector(tc_rows, 'T_tc_year')
+    q_grouped = group_by_detector(q_rows, 'q')
+
+    fig, axes = plt.subplots(1, 2, figsize=(13.4, 5.4))
+    ax_tc, ax_q = axes
+    ax_tc_right = ax_tc.twinx()
+    ax_q_right = ax_q.twinx()
+
+    for detector in DETECTOR_ORDER:
+        style = DETECTOR_STYLE[detector]
+        color = style['color']
+
+        rows = tc_grouped.get(detector, [])
+        if rows:
+            x = np.array([row['T_tc_year'] for row in rows])
+            y_constraint = np.array([row['d_sqrt_alpha_dCS_km'] for row in rows])
+            y_flow = np.array([row['f_low_Hz'] for row in rows])
+            ax_tc.plot(x, y_constraint, linewidth=2.1, markersize=5.6, label=detector, **style)
+            ax_tc_right.plot(x, y_flow, color=color, linestyle=':', linewidth=2.0, alpha=0.32)
+
+        rows = q_grouped.get(detector, [])
+        if rows:
+            x = np.array([row['q'] for row in rows])
+            y_constraint = np.array([row['d_sqrt_alpha_dCS_km'] for row in rows])
+            y_snr = np.array([row['SNR'] for row in rows])
+            ax_q.plot(x, y_constraint, linewidth=2.1, markersize=3.0, markevery=10, label=detector, **style)
+            ax_q_right.plot(x, y_snr, color=color, linestyle=':', linewidth=2.0, alpha=0.32)
+
+    ax_tc.set_xlabel(r'$T_{\mathrm{obs}}~[\mathrm{yr}]$', fontsize=16)
+    ax_tc.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
+    ax_tc_right.set_ylabel(r'$f_{\mathrm{low}}~[\mathrm{Hz}]$', fontsize=14, color='dimgray', labelpad=8)
+    ax_tc.set_xscale('log')
+    ax_tc.set_yscale('log')
+    ax_tc_right.set_yscale('log')
+    ax_tc.set_xticks(T_OBS_TICKS)
+    ax_tc.set_xticklabels(T_OBS_LABELS, rotation=30, ha='right')
+    ax_tc.set_title(r'Observation time', fontsize=18, pad=12)
+    ax_tc.text(0.03, 0.94, r'$(a)$', transform=ax_tc.transAxes, fontsize=16)
+    style_axes(ax_tc)
+    ax_tc_right.tick_params(axis='y', labelsize=14, colors='dimgray')
+
+    ax_q.set_xlabel(r'$q=m_1/m_2$', fontsize=16)
+    ax_q.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
+    ax_q_right.set_ylabel(r'$\mathrm{SNR}$', fontsize=14, color='dimgray', labelpad=8)
+    ax_q.set_yscale('log')
+    ax_q_right.set_yscale('log')
+    ax_q.set_xlim(1.2, 8.9)
+    ax_q.set_title(r'Mass ratio', fontsize=18, pad=12)
+    ax_q.text(0.03, 0.94, r'$(b)$', transform=ax_q.transAxes, fontsize=16)
+    style_axes(ax_q)
+    ax_q_right.tick_params(axis='y', labelsize=14, colors='dimgray')
+
+    make_combined_legends(ax_q)
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.36, wspace=0.52)
+
+    output_dir = f'./data/{date}/fig/'
+    os.makedirs(output_dir, exist_ok=True)
+    fig.savefig(os.path.join(output_dir, 'sensitivity_combined.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
+    fig.savefig(os.path.join(output_dir, 'sensitivity_combined.png'), dpi=600, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+
+
 def plot_constraint_sensitivity(date):
     """绘制 dCS 约束随 T_tc 和 q 变化的主图。"""
     tc_rows = read_csv_rows(f'./data/{date}/results/tc_sensitivity.csv')
@@ -181,6 +280,5 @@ def plot_diagnostics(date):
 
 
 def plot_all(date):
-    """生成所有敏感性分析图。"""
-    plot_constraint_sensitivity(date)
-    plot_diagnostics(date)
+    """生成合并后的敏感性分析图。"""
+    plot_combined_sensitivity(date)

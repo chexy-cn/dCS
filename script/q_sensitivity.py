@@ -5,6 +5,7 @@
 """
 
 from pathlib import Path
+from datetime import date
 import csv
 import itertools
 import os
@@ -62,9 +63,14 @@ def write_results(file_path, results):
         writer.writerows(results)
 
 
+def current_date_tag():
+    """返回当前日期标签，格式为 YYYYMMDD。"""
+    return date.today().strftime('%Y%m%d')
+
+
 def main():
     """运行所有探测器和质量比组合。"""
-    date = 20260506
+    date_tag = current_date_tag()
     detectors = ['aLIGO', 'TianQin', 'CE', 'LISA', 'ET', 'Taiji', 'BBO', 'DECIGO']
     q_values = np.arange(1.2, 8.9 + 0.05, 0.1)
 
@@ -92,7 +98,7 @@ def main():
         results = list(tqdm(pool.imap_unordered(process_task, param_space), total=len(param_space)))
 
     results.sort(key=lambda item: (item['detector'], item['q']))
-    write_results(f'./data/{date}/results/q_sensitivity.csv', results)
+    write_results(f'./data/{date_tag}/results/q_sensitivity.csv', results)
 
 
 if __name__ == '__main__':

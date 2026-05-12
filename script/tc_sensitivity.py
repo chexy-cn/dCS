@@ -6,6 +6,7 @@
 
 from pathlib import Path
 import csv
+from datetime import date
 import itertools
 import os
 import sys
@@ -61,9 +62,14 @@ def write_results(file_path, results):
         writer.writerows(results)
 
 
+def current_date_tag():
+    """返回当前日期标签，格式为 YYYYMMDD。"""
+    return date.today().strftime('%Y%m%d')
+
+
 def main():
     """运行所有探测器和观测时间组合。"""
-    date = 20260506
+    date_tag = current_date_tag()
     detectors = ['aLIGO', 'TianQin', 'CE', 'LISA', 'ET', 'Taiji', 'BBO', 'DECIGO']
     T_tc_years = [
         1 / 365.25,
@@ -101,7 +107,7 @@ def main():
         results = list(tqdm(pool.imap_unordered(process_task, param_space), total=len(param_space)))
 
     results.sort(key=lambda item: (item['detector'], item['T_tc_year']))
-    write_results(f'./data/{date}/results/tc_sensitivity.csv', results)
+    write_results(f'./data/{date_tag}/results/tc_sensitivity.csv', results)
 
 
 if __name__ == '__main__':

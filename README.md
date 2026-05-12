@@ -169,7 +169,7 @@ T_tc = 1 day, 1 week, 1 month, 3 months, 0.5 yr, 1 yr, 2 yr, 3 yr, 4 yr, 5 yr
 输出：
 
 ```text
-data/20260506/results/tc_sensitivity.csv
+data/<YYYYMMDD>/results/tc_sensitivity.csv
 ```
 
 ### 2. 质量比 q 敏感性
@@ -198,7 +198,7 @@ q = 1.2, 1.3, ..., 8.9
 输出：
 
 ```text
-data/20260506/results/q_sensitivity.csv
+data/<YYYYMMDD>/results/q_sensitivity.csv
 ```
 
 两个 CSV 都包含：
@@ -234,42 +234,35 @@ python script/plot_sensitivity.py
 该脚本读取：
 
 ```text
-data/20260506/results/tc_sensitivity.csv
-data/20260506/results/q_sensitivity.csv
+data/<YYYYMMDD>/results/tc_sensitivity.csv
+data/<YYYYMMDD>/results/q_sensitivity.csv
 ```
 
 并输出：
 
 ```text
-data/20260506/fig/sensitivity_constraints.pdf
-data/20260506/fig/sensitivity_constraints.png
-data/20260506/fig/sensitivity_diagnostics.pdf
-data/20260506/fig/sensitivity_diagnostics.png
+data/<YYYYMMDD>/fig/sensitivity_combined.pdf
+data/<YYYYMMDD>/fig/sensitivity_combined.png
+```
+
+默认 `<YYYYMMDD>` 由系统日期自动生成。若要绘制旧结果目录，可以指定：
+
+```bash
+python script/plot_sensitivity.py --date 20260506
 ```
 
 推荐论文正文使用：
 
 ```text
-data/20260506/fig/sensitivity_constraints.pdf
+data/<YYYYMMDD>/fig/sensitivity_combined.pdf
 ```
 
 该图包含两栏：
 
-- `Delta sqrt(alpha_bar_dCS)` 随 `T_obs` 的变化；
-- `Delta sqrt(alpha_bar_dCS)` 随 `q` 的变化。
+- 左栏：`Delta sqrt(alpha_bar_dCS)` 随 `T_obs` 的变化，并用右纵轴同时展示 `f_low`；
+- 右栏：`Delta sqrt(alpha_bar_dCS)` 随 `q` 的变化，并用右纵轴同时展示 SNR。
 
-诊断图：
-
-```text
-data/20260506/fig/sensitivity_diagnostics.pdf
-```
-
-用于展示：
-
-- `f_low` 随 `T_obs` 的变化；
-- SNR 随 `q` 的变化。
-
-这张图适合放在补充材料或回复审稿人的说明中。
+实线表示 dCS 约束精度，浅色点线表示右轴上的诊断量。
 
 ## 输入与输出格式
 
@@ -361,7 +354,7 @@ script/q_sensitivity.py
 
 script/plot_sensitivity.py
     -> getresults/plot_sensitivity.py
-    -> data/20260506/results/*.csv
+    -> data/<YYYYMMDD>/results/*.csv
 ```
 
 ## 开发建议
