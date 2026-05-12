@@ -65,7 +65,18 @@ def main():
     """运行所有探测器和观测时间组合。"""
     date = 20260506
     detectors = ['aLIGO', 'TianQin', 'CE', 'LISA', 'ET', 'Taiji', 'BBO', 'DECIGO']
-    T_tc_years = [0.25, 0.5, 1.0, 5.0]
+    T_tc_years = [
+        1 / 365.25,
+        7 / 365.25,
+        1 / 12,
+        0.25,
+        0.5,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+    ]
 
     M_total_n = 100.0
     D_l_mpc = 100.0

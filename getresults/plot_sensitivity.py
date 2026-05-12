@@ -25,6 +25,8 @@ DETECTOR_STYLE = {
     'ET': {'color': 'purple', 'marker': 'X', 'linestyle': ':'},
     'CE': {'color': 'gray', 'marker': '*', 'linestyle': '-.'},
 }
+T_OBS_TICKS = [1 / 365.25, 7 / 365.25, 1 / 12, 0.25, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+T_OBS_LABELS = ['1 d', '1 wk', '1 mo', '3 mo', '0.5', '1', '2', '3', '4', '5']
 
 
 def read_csv_rows(file_path):
@@ -100,8 +102,8 @@ def plot_constraint_sensitivity(date):
     ax_tc.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
     ax_tc.set_xscale('log')
     ax_tc.set_yscale('log')
-    ax_tc.set_xticks([0.25, 0.5, 1.0, 5.0])
-    ax_tc.set_xticklabels(['0.25', '0.5', '1', '5'])
+    ax_tc.set_xticks(T_OBS_TICKS)
+    ax_tc.set_xticklabels(T_OBS_LABELS, rotation=30, ha='right')
     ax_tc.set_title(r'Observation time', fontsize=18, pad=12)
     ax_tc.text(0.03, 0.94, r'$(a)$', transform=ax_tc.transAxes, fontsize=16)
     style_axes(ax_tc)
@@ -153,8 +155,8 @@ def plot_diagnostics(date):
     ax_f.set_ylabel(r'$f_{\mathrm{low}}~[\mathrm{Hz}]$', fontsize=16)
     ax_f.set_xscale('log')
     ax_f.set_yscale('log')
-    ax_f.set_xticks([0.25, 0.5, 1.0, 5.0])
-    ax_f.set_xticklabels(['0.25', '0.5', '1', '5'])
+    ax_f.set_xticks(T_OBS_TICKS)
+    ax_f.set_xticklabels(T_OBS_LABELS, rotation=30, ha='right')
     ax_f.set_title(r'Low-frequency cutoff', fontsize=18, pad=12)
     ax_f.text(0.03, 0.94, r'$(a)$', transform=ax_f.transAxes, fontsize=16)
     style_axes(ax_f)

@@ -163,7 +163,7 @@ iota    = 0.9 rad
 扫描：
 
 ```text
-T_tc = 0.25, 0.5, 1.0, 5.0 yr
+T_tc = 1 day, 1 week, 1 month, 3 months, 0.5 yr, 1 yr, 2 yr, 3 yr, 4 yr, 5 yr
 ```
 
 输出：
