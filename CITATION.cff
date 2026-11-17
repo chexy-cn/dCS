@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "Please cite the accompanying paper when using this research code."
+type: software
+title: "dCS gravitational-wave forecasts"
+version: 0.1.0
+date-released: 2026-11-17
+authors:
+  - family-names: Che
+    given-names: Xinyi
+  - family-names: Lyu
+    given-names: Xiangyu
+  - family-names: Shi
+    given-names: Changfu
+repository-code: "https://github.com/chexy-cn/dCS"
+abstract: "Code accompanying Constraining the dynamical Chern-Simons gravity with future gravitational-wave detectors."

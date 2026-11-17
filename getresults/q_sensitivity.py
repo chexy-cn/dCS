@@ -5,9 +5,14 @@
 """
 
 import numpy as np
-from fim import G_c_3, covariance, get_detecror_parameters, q_to_eta, snr
+from dcs.fim import G_c_3, covariance, get_detecror_parameters, q_to_eta, snr
 from lal import MSUN_SI, PC_SI
 from scipy.constants import G, c, pi, year
+
+
+def validity_scale_km(m2_msun):
+    """Small-coupling length scale of the lighter component, in kilometres."""
+    return ((m2_msun * MSUN_SI)**4 * G**4 / c**8 / (32*pi))**0.25 * 1e-3
 
 
 def build_parameters(
@@ -35,6 +40,12 @@ def build_parameters(
     Returns:
         `(parameters, parameters_snr, delta_para, metadata, Sn_dector)`。
     """
+    if not all(np.isfinite(v) for v in (p_M_total_n, p_D_l_mpc, p_T_tc_year, p_q, p_x1, p_x2, p_iota)):
+        raise ValueError('Source parameters must be finite')
+    if min(p_M_total_n, p_D_l_mpc, p_T_tc_year) <= 0 or p_q < 1:
+        raise ValueError('Positive mass/distance/time and q >= 1 required')
+    if max(abs(p_x1), abs(p_x2)) > 1 or not 0 <= p_iota <= np.pi:
+        raise ValueError('Invalid aligned spin or inclination')
     f_D_low, f_D_high, _, _, _, _, Sn_dector, delta_M_n, delta_eta_n, delta_x1_n, delta_x2_n = get_detecror_parameters(p_detector)
 
     eta = q_to_eta(p_q)
@@ -69,8 +80,8 @@ def build_parameters(
     delta_para = {
         'delta_M': M_total * delta_M_n,
         'delta_eta': eta * delta_eta_n,
-        'delta_x1': p_x1 * delta_x1_n,
-        'delta_x2': p_x2 * delta_x2_n,
+        'delta_x1': (p_x1 if abs(p_x1) >= 1e-6 else 1.0) * delta_x1_n,
+        'delta_x2': (p_x2 if abs(p_x2) >= 1e-6 else 1.0) * delta_x2_n,
     }
     metadata = {
         'eta': eta,
@@ -110,11 +121,18 @@ def get_result(
         p_x2,
         p_iota,
     )
+    if parameters['f_min'] >= parameters['f_max']:
+        return None
     cov = covariance(parameters, delta_para, Sn_dector)
-    sigma_alpha_dCS_bar_square = np.sqrt(cov[7, 7]).real
+    if cov is None:
+        return None
+    variance = float(cov[7, 7].real)
+    if not np.isfinite(variance) or variance <= 0:
+        return None
+    sigma_alpha_dCS_bar_square = np.sqrt(variance)
     d_sqrt_alpha_dCS_km = sigma_alpha_dCS_bar_square**0.25 * 1e-3
     m2 = p_M_total_n / (p_q + 1)
-    alpha_dCS_bar_square_max_km = ((m2 * MSUN_SI)**4 * G**4 / c**8 / 32 / pi)**0.25 * 1e-3
+    alpha_dCS_bar_square_max_km = validity_scale_km(m2)
     SNR = snr(parameters_snr, Sn_dector)
 
     return {

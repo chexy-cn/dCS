@@ -6,15 +6,14 @@
 """
 
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import interpolate
 from scipy.constants import c, pi
-import numpy as np
 import os
-mpl.use('Agg')
 
-_GW_HOME = os.path.expanduser('~/code/dCS')
+_GW_HOME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SN_DATA_DIR = os.path.join(_GW_HOME, 'Sn', 'data')
 
 # 全天平均
@@ -213,42 +212,10 @@ def sensitivity_curves_CE_sn(f):
 
 
 if __name__ == '__main__':
-    date = 20250419
-    size=16
-    f1 = np.logspace(-3, 2, 1000)
-    f2 = np.logspace(-4, 0, 1000)
-    f22 = np.logspace(-4, 2, 1000)
-    f21 = np.logspace(np.log10(2*10**(-5)), 0, 1000)
-    f3 = np.logspace(np.log10(6), np.log10(4999), 1000)
-    f4 = np.logspace(0, 4, 1000)
-    TianQin = sensitivity_curves_TianQin_sn(f2)
-    LISA = sensitivity_curves_LISA_sn(f21)
-    Taiji = sensitivity_curves_Taiji_sn(f2)
-    ET = sensitivity_curves_ET_sn(f4)
-    aLIGO = sensitivity_curves_aLIGO_sn(f3)
-    CE = sensitivity_curves_CE_sn(f3)
-    DECIGO = sensitivity_curves_DECIGO_sn(f22)
-    BBO = sensitivity_curves_BBO_sn(f22)
-    plt.figure(figsize=(10, 6))
-    plt.plot(f2, np.sqrt(TianQin)*np.sqrt(f2), label='TianQin', color='blue')
-    plt.plot(f21, np.sqrt(LISA)*np.sqrt(f21), label='LISA', color='limegreen', linestyle='--')
-    plt.plot(f2, np.sqrt(Taiji)*np.sqrt(f2), label='Taiji', color='black', linestyle=':')
-    plt.plot(f4, np.sqrt(ET)*np.sqrt(f4), label='ET', color='purple')
-    plt.plot(f3, np.sqrt(aLIGO)*np.sqrt(f3), label='aLIGO', color='brown')
-    plt.plot(f3, np.sqrt(CE)*np.sqrt(f3), label='CE', color='gray')
-    plt.plot(f22, np.sqrt(DECIGO)*np.sqrt(f22), label='DECIGO', color='green')
-    plt.plot(f22, np.sqrt(BBO)*np.sqrt(f22), label='BBO', color='tomato', linestyle='-.')
-    plt.grid(True, alpha=0.3)  # 添加半透明网格
-    plt.legend(fontsize=size)  # 显示图例
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel('Frequency [Hz]', fontsize=size)
-    plt.ylabel(r'Characteristic~Strain [1/$\sqrt{\mathrm{Hz}}$]', fontsize=size)
-    # plt.xlim(1e-5, 1)
-    plt.xticks(fontsize=size)
-    plt.yticks(fontsize=size)
-    plt.tight_layout()
-    # plt.savefig(os.path.join(_GW_HOME, 'Sn', f'sensitivitycurve-{size}.png'), dpi=600)
-    plt.savefig(os.path.join(_GW_HOME, 'Sn', 'sensitivitycurve_CS.pdf'), dpi=600)
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from dcs.cli import main
+    main(['noise'] + sys.argv[1:])
 
 

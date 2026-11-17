@@ -10,7 +10,9 @@ import os
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 import numpy as np
 
 
@@ -58,6 +60,23 @@ def style_axes(ax):
     ax.tick_params(axis='both', labelsize=14)
     ax.grid(True, which='major', linestyle=':', color='gray', alpha=0.8, linewidth=0.8)
     ax.grid(True, which='minor', linestyle=':', color='gray', alpha=0.25, linewidth=0.5)
+
+
+def spin_contours(ax, x, y, grid, detector):
+    """Label only levels present in this panel, including 50 km where requested."""
+    finite = grid[np.isfinite(grid) & (grid > 0)]
+    if len(finite) < 4:
+        return
+    low, high = finite.min(), finite.max()
+    levels = list(10. ** np.arange(np.ceil(np.log10(low)), np.floor(np.log10(high)) + 1))
+    if detector in {'TianQin', 'LISA', 'Taiji', 'aLIGO'} and low < 50 < high:
+        levels.append(50.)
+    levels = sorted({level for level in levels if low < level < high})
+    if levels:
+        contour = ax.contour(x, y, np.ma.masked_invalid(grid.T), levels=levels,
+                             colors='white', linewidths=1.1, alpha=.9)
+        ax.clabel(contour, fmt=lambda value: f'{value:g}', fontsize=7,
+                  colors='black', inline=True, inline_spacing=2)
 
 
 def make_legend(ax):
@@ -123,10 +142,10 @@ def plot_observation_time_flow_groups(ax, tc_grouped):
         ax.plot(x, y, color='dimgray', linestyle=':', linewidth=2.8, alpha=0.85)
 
 
-def plot_combined_sensitivity(date):
+def plot_combined_sensitivity(date, results_root="results", data_dir=None):
     """绘制一张包含约束和诊断量的双纵轴敏感性图。"""
-    tc_rows = read_csv_rows(f'./data/{date}/results/tc_sensitivity.csv')
-    q_rows = read_csv_rows(f'./data/{date}/results/q_sensitivity.csv')
+    tc_rows = read_csv_rows(f'{data_dir or str(results_root) + "/" + str(date) + "/data"}/tc_sensitivity.csv')
+    q_rows = read_csv_rows(f'{data_dir or str(results_root) + "/" + str(date) + "/data"}/q_sensitivity.csv')
     tc_grouped = group_by_detector(tc_rows, 'T_tc_year')
     q_grouped = group_by_detector(q_rows, 'q')
 
@@ -183,119 +202,119 @@ def plot_combined_sensitivity(date):
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.18, wspace=0.52)
 
-    output_dir = f'./data/{date}/fig/'
+    output_dir = f'{results_root}/{date}/fig/'
     os.makedirs(output_dir, exist_ok=True)
     fig.savefig(os.path.join(output_dir, 'sensitivity_combined.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
     fig.savefig(os.path.join(output_dir, 'sensitivity_combined.png'), dpi=600, bbox_inches='tight', facecolor='white')
     plt.close(fig)
 
 
-def plot_constraint_sensitivity(date):
-    """绘制 dCS 约束随 T_tc 和 q 变化的主图。"""
-    tc_rows = read_csv_rows(f'./data/{date}/results/tc_sensitivity.csv')
-    q_rows = read_csv_rows(f'./data/{date}/results/q_sensitivity.csv')
-    tc_grouped = group_by_detector(tc_rows, 'T_tc_year')
-    q_grouped = group_by_detector(q_rows, 'q')
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2))
-    ax_tc, ax_q = axes
 
-    for detector in DETECTOR_ORDER:
-        style = DETECTOR_STYLE[detector]
-        rows = tc_grouped.get(detector, [])
-        if rows:
-            x = np.array([row['T_tc_year'] for row in rows])
-            y = np.array([row['d_sqrt_alpha_dCS_km'] for row in rows])
-            ax_tc.plot(x, y, linewidth=2.0, markersize=6, label=detector, **style)
 
-        rows = q_grouped.get(detector, [])
-        if rows:
-            x = np.array([row['q'] for row in rows])
-            y = np.array([row['d_sqrt_alpha_dCS_km'] for row in rows])
-            ax_q.plot(x, y, linewidth=2.0, markersize=3.2, markevery=10, label=detector, **style)
 
-    ax_tc.set_xlabel(r'$T_{\mathrm{obs}}~[\mathrm{yr}]$', fontsize=16)
-    ax_tc.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
-    ax_tc.set_xscale('log')
-    ax_tc.set_yscale('log')
-    ax_tc.set_xticks(T_OBS_TICKS)
-    ax_tc.set_xticklabels(T_OBS_LABELS, rotation=30, ha='right')
-    ax_tc.set_title(r'Observation time', fontsize=18, pad=12)
-    ax_tc.text(0.03, 0.94, r'$(a)$', transform=ax_tc.transAxes, fontsize=16)
-    style_axes(ax_tc)
 
-    ax_q.set_xlabel(r'$q=m_1/m_2$', fontsize=16)
-    ax_q.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
-    ax_q.set_yscale('log')
-    ax_q.set_xlim(1.2, 8.9)
-    ax_q.set_title(r'Mass ratio', fontsize=18, pad=12)
-    ax_q.text(0.03, 0.94, r'$(b)$', transform=ax_q.transAxes, fontsize=16)
-    style_axes(ax_q)
 
-    make_legend(ax_q)
-    fig.tight_layout()
-    fig.subplots_adjust(bottom=0.26, wspace=0.28)
+def plot_spin_component_sensitivity(date, results_root="results", data_dir=None):
+    """绘制每个探测器的分量自旋 x1-x2 约束热图。"""
+    component_path = f'{data_dir or str(results_root) + "/" + str(date) + "/data"}/spin_component_sensitivity.csv'
+    rows = read_csv_rows(component_path)
+    x1_values = np.unique(np.round(np.array([row['x1'] for row in rows]), 12))
+    x2_values = np.unique(np.round(np.array([row['x2'] for row in rows]), 12))
+    finite_constraints = np.array([
+        row['d_sqrt_alpha_dCS_km'] for row in rows
+        if np.isfinite(row['d_sqrt_alpha_dCS_km']) and row['d_sqrt_alpha_dCS_km'] > 0
+    ])
+    if not len(finite_constraints):
+        raise ValueError('Spin sensitivity CSV contains no positive finite constraints.')
+    norm = LogNorm(vmin=finite_constraints.min(), vmax=finite_constraints.max())
 
-    output_dir = f'./data/{date}/fig/'
+    fig, axes = plt.subplots(2, 4, figsize=(14, 7.2), sharex=True, sharey=True, constrained_layout=True)
+    image = None
+    for ax, detector in zip(axes.flat, DETECTOR_ORDER):
+        grid = np.full((len(x1_values), len(x2_values)), np.nan)
+        for row in rows:
+            if row['detector'] != detector:
+                continue
+            i = np.searchsorted(x1_values, round(row['x1'], 12))
+            j = np.searchsorted(x2_values, round(row['x2'], 12))
+            value = row['d_sqrt_alpha_dCS_km']
+            if np.isfinite(value) and value > 0:
+                grid[i, j] = value
+        ax.set_facecolor('#eeeeee')
+        image = ax.pcolormesh(x1_values, x2_values, grid.T, shading='nearest', cmap='viridis_r', norm=norm)
+        spin_contours(ax, x1_values, x2_values, grid, detector)
+        ax.add_patch(Rectangle((-0.045, -0.045), 0.09, 0.09, fill=False, hatch='///', edgecolor='black', linewidth=0.7, zorder=3))
+        ax.plot([-0.9, 0.9], [-0.9, 0.9], color='white', linestyle=':', linewidth=0.8, alpha=0.55)
+        ax.plot(0.4, 0.2, marker='*', markersize=9, markerfacecolor='white', markeredgecolor='black', markeredgewidth=0.9, linestyle='None', zorder=6)
+        ax.set_title(detector, fontsize=14)
+        ax.set_aspect('equal')
+        style_axes(ax)
+
+    for ax in axes[-1, :]:
+        ax.set_xlabel(r'$x_1$', fontsize=13)
+    for ax in axes[:, 0]:
+        ax.set_ylabel(r'$x_2$', fontsize=13)
+    colorbar = fig.colorbar(image, ax=axes, shrink=0.92, pad=0.02)
+    colorbar.set_label(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=14)
+
+    output_dir = f'{results_root}/{date}/fig/'
     os.makedirs(output_dir, exist_ok=True)
-    fig.savefig(os.path.join(output_dir, 'sensitivity_constraints.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
-    fig.savefig(os.path.join(output_dir, 'sensitivity_constraints.png'), dpi=600, bbox_inches='tight', facecolor='white')
+    fig.savefig(os.path.join(output_dir, 'spin_component_sensitivity.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
+    fig.savefig(os.path.join(output_dir, 'spin_component_sensitivity.png'), dpi=600, bbox_inches='tight', facecolor='white')
     plt.close(fig)
 
 
-def plot_diagnostics(date):
-    """绘制低频截止和 SNR 的诊断图，辅助解释敏感性变化来源。"""
-    tc_rows = read_csv_rows(f'./data/{date}/results/tc_sensitivity.csv')
-    q_rows = read_csv_rows(f'./data/{date}/results/q_sensitivity.csv')
-    tc_grouped = group_by_detector(tc_rows, 'T_tc_year')
-    q_grouped = group_by_detector(q_rows, 'q')
-
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2))
-    ax_f, ax_snr = axes
+def plot_inclination_sensitivity(date, results_root="results", data_dir=None):
+    """绘制倾角下的 dCS 约束与 SNR 曲线。"""
+    rows = read_csv_rows(f'{data_dir or str(results_root) + "/" + str(date) + "/data"}/inclination_sensitivity.csv')
+    grouped = group_by_detector(rows, 'iota')
+    fig, ax = plt.subplots(figsize=(8.2, 5.4))
+    ax_snr = ax.twinx()
 
     for detector in DETECTOR_ORDER:
+        detector_rows = grouped.get(detector, [])
+        if not detector_rows:
+            continue
         style = DETECTOR_STYLE[detector]
-        rows = tc_grouped.get(detector, [])
-        if rows:
-            x = np.array([row['T_tc_year'] for row in rows])
-            y = np.array([row['f_low_Hz'] for row in rows])
-            ax_f.plot(x, y, linewidth=2.0, markersize=6, label=detector, **style)
+        x = np.array([row['iota'] for row in detector_rows])
+        constraint = np.array([row['d_sqrt_alpha_dCS_km'] for row in detector_rows])
+        snr_values = np.array([row['SNR'] for row in detector_rows])
+        ax.plot(x, constraint, linewidth=2.1, markersize=4.2, markevery=4, label=detector, **style)
+        ax_snr.plot(x, snr_values, color=style['color'], linestyle=':', linewidth=1.8, alpha=0.32)
 
-        rows = q_grouped.get(detector, [])
-        if rows:
-            x = np.array([row['q'] for row in rows])
-            y = np.array([row['SNR'] for row in rows])
-            ax_snr.plot(x, y, linewidth=2.0, markersize=3.2, markevery=10, label=detector, **style)
-
-    ax_f.set_xlabel(r'$T_{\mathrm{obs}}~[\mathrm{yr}]$', fontsize=16)
-    ax_f.set_ylabel(r'$f_{\mathrm{low}}~[\mathrm{Hz}]$', fontsize=16)
-    ax_f.set_xscale('log')
-    ax_f.set_yscale('log')
-    ax_f.set_xticks(T_OBS_TICKS)
-    ax_f.set_xticklabels(T_OBS_LABELS, rotation=30, ha='right')
-    ax_f.set_title(r'Low-frequency cutoff', fontsize=18, pad=12)
-    ax_f.text(0.03, 0.94, r'$(a)$', transform=ax_f.transAxes, fontsize=16)
-    style_axes(ax_f)
-
-    ax_snr.set_xlabel(r'$q=m_1/m_2$', fontsize=16)
-    ax_snr.set_ylabel(r'$\mathrm{SNR}$', fontsize=16)
+    ax.set_xlabel(r'$\iota~[\mathrm{rad}]$', fontsize=16)
+    ax.set_ylabel(r'$\Delta\sqrt{\overline{\alpha}_{\mathrm{dCS}}}~[\mathrm{km}]$', fontsize=16)
+    ax_snr.set_ylabel(r'$\mathrm{SNR}$', fontsize=15, color='dimgray')
+    ax.set_xlim(0, np.pi / 2)
+    ax.axvline(0.9, color='black', linestyle='--', linewidth=1.25, zorder=4)
+    ax.text(0.9, 0.04, r'$\iota=0.9$', transform=ax.get_xaxis_transform(), ha='center', va='bottom', fontsize=11, color='black')
+    ax.set_xticks([0, np.pi / 4, np.pi / 2])
+    ax.set_xticklabels([r'$0$', r'$\pi/4$', r'$\pi/2$'])
+    ax.set_yscale('log')
     ax_snr.set_yscale('log')
-    ax_snr.set_xlim(1.2, 8.9)
-    ax_snr.set_title(r'Signal-to-noise ratio', fontsize=18, pad=12)
-    ax_snr.text(0.03, 0.94, r'$(b)$', transform=ax_snr.transAxes, fontsize=16)
-    style_axes(ax_snr)
-
-    make_legend(ax_snr)
+    ax.set_title('Inclination', fontsize=18, pad=12)
+    style_axes(ax)
+    ax_snr.tick_params(axis='y', labelsize=14, colors='dimgray')
+    make_legend(ax)
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.26, wspace=0.28)
+    fig.subplots_adjust(bottom=0.27, right=0.86)
 
-    output_dir = f'./data/{date}/fig/'
+    output_dir = f'{results_root}/{date}/fig/'
     os.makedirs(output_dir, exist_ok=True)
-    fig.savefig(os.path.join(output_dir, 'sensitivity_diagnostics.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
-    fig.savefig(os.path.join(output_dir, 'sensitivity_diagnostics.png'), dpi=600, bbox_inches='tight', facecolor='white')
+    fig.savefig(os.path.join(output_dir, 'inclination_sensitivity.pdf'), dpi=600, bbox_inches='tight', facecolor='white')
+    fig.savefig(os.path.join(output_dir, 'inclination_sensitivity.png'), dpi=600, bbox_inches='tight', facecolor='white')
     plt.close(fig)
 
 
-def plot_all(date):
-    """生成合并后的敏感性分析图。"""
-    plot_combined_sensitivity(date)
+def plot_all(date, results_root="results", data_dir=None):
+    """生成当前日期下已有输入数据对应的敏感性图。"""
+    output_dir = f'{data_dir or str(results_root) + "/" + str(date) + "/data"}/'
+    tc_path = os.path.join(output_dir, 'tc_sensitivity.csv')
+    q_path = os.path.join(output_dir, 'q_sensitivity.csv')
+    if os.path.exists(tc_path) and os.path.exists(q_path):
+        plot_combined_sensitivity(date, results_root, data_dir)
+    if os.path.exists(os.path.join(output_dir, 'spin_component_sensitivity.csv')):
+        plot_spin_component_sensitivity(date, results_root, data_dir)
+    if os.path.exists(os.path.join(output_dir, 'inclination_sensitivity.csv')):
+        plot_inclination_sensitivity(date, results_root, data_dir)

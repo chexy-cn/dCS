@@ -1,0 +1,11 @@
+name: dcs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - lalsuite=7.22
+  - numpy=1.26.4
+  - scipy=1.13.1
+  - matplotlib=3.9.2
+  - tqdm=4.67
+  - pip

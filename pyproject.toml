@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dcs-gw"
+version = "0.1.0"
+description = "Higher-mode gravitational-wave Fisher forecasts for dynamical Chern-Simons gravity"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.26,<2", "scipy>=1.13,<1.14", "matplotlib>=3.9,<3.10",
+  "lalsuite==7.22", "tqdm>=4.67,<5"
+]
+
+[project.scripts]
+dcs-gw = "dcs.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dcs*", "getresults*", "Sn*", "script*"]
+
+[tool.setuptools.package-data]
+Sn = ["data/*.txt", "data/*.md", "data/SHA256SUMS"]

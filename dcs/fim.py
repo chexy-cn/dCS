@@ -9,7 +9,7 @@ from Sn import Sn
 import lalsimulation as lalsim
 from scipy.constants import c, G, year, pi
 from numpy import linalg
-from swsh import swsh_lm
+from dcs.swsh import swsh_lm
 
 # 常数
 G_c_3 = G / pow(c, 3)
@@ -165,14 +165,22 @@ def get_waveform_lm(p_para):
     hp44, _ = phenomXHM_lm_fd(p_para, 4, 4)
 
     p_iota = p_para['iota']
-    
-    alpha_values = np.array([alpha_dCS_ctb(freq, p_para) for freq in f])
-    beta22_values = np.array([beta_dCS_ctb(freq, p_para, 2, 2) for freq in f])
-    beta21_values = np.array([beta_dCS_ctb(freq, p_para, 2, 1) for freq in f])
-    beta33_values = np.array([beta_dCS_ctb(freq, p_para, 3, 3) for freq in f])
-    beta32_values = np.array([beta_dCS_ctb(freq, p_para, 3, 2) for freq in f])
-    beta44_values = np.array([beta_dCS_ctb(freq, p_para, 4, 4) for freq in f])
-    
+    p_eta, p_M = p_para['eta'], p_para['M']
+    p_x1, p_x2 = p_para['x1'], p_para['x2']
+    p_alpha_dcs, p_a, p_b = p_para['alpha_dCS_bar_square'], p_para['a'], p_para['b']
+
+    # Scalar dCS coefficients are shared by every frequency bin and mode.
+    u_values = u(f, p_eta, p_M)
+    alpha_coefficient = alpha_dCS(p_eta, zeta_dCS(p_M, p_alpha_dcs), delta_m(p_eta), x_s(p_x1, p_x2), x_a(p_x1, p_x2))
+    beta_coefficient = beta_dCS(p_eta, zeta_dCS(p_M, p_alpha_dcs), delta_m(p_eta), x_s(p_x1, p_x2), x_a(p_x1, p_x2))
+    alpha_values = 1.0 + alpha_coefficient * np.power(u_values, p_a)
+    beta_frequency = beta_coefficient * np.power(u_values, p_b)
+    beta22_values = np.exp(1j * beta_frequency * np.power(2 / 2, p_b / 3 - 1))
+    beta21_values = np.exp(1j * beta_frequency * np.power(2 / 1, p_b / 3 - 1))
+    beta33_values = np.exp(1j * beta_frequency * np.power(2 / 3, p_b / 3 - 1))
+    beta32_values = np.exp(1j * beta_frequency * np.power(2 / 2, p_b / 3 - 1))
+    beta44_values = np.exp(1j * beta_frequency * np.power(2 / 4, p_b / 3 - 1))
+
     hp_22 = hp22 * swsh_lm(2, 2, p_iota) * beta22_values * alpha_values
     hp_21 = hp21 * swsh_lm(2, 1, p_iota) * beta21_values * alpha_values
     hp_33 = hp33 * swsh_lm(3, 3, p_iota) * beta33_values * alpha_values
@@ -180,8 +188,26 @@ def get_waveform_lm(p_para):
     hp_44 = hp44 * swsh_lm(4, 4, p_iota) * beta44_values * alpha_values
 
     hp_total = hp_22 + hp_21 + hp_33 + hp_32 + hp_44
-    
+
     return hp_total, hp_22, hp_21, hp_33, hp_32, hp_44, hp22, hp21, hp33, hp32, hp44, f
+
+
+def get_waveform_lm_gr(p_para):
+    """Generate the projected IMRPhenomXHM waveform without dCS corrections."""
+    hp22, f = phenomXHM_lm_fd(p_para, 2, 2)
+    hp21, _ = phenomXHM_lm_fd(p_para, 2, 1)
+    hp33, _ = phenomXHM_lm_fd(p_para, 3, 3)
+    hp32, _ = phenomXHM_lm_fd(p_para, 3, 2)
+    hp44, _ = phenomXHM_lm_fd(p_para, 4, 4)
+    p_iota = p_para["iota"]
+    hp_total = (
+        hp22 * swsh_lm(2, 2, p_iota)
+        + hp21 * swsh_lm(2, 1, p_iota)
+        + hp33 * swsh_lm(3, 3, p_iota)
+        + hp32 * swsh_lm(3, 2, p_iota)
+        + hp44 * swsh_lm(4, 4, p_iota)
+    )
+    return hp_total, f
 
 # 偏导定义
 def par(p_a, p_b, p_delta):
@@ -213,7 +239,15 @@ def get_h_par(p_para, p_delta):
     para_x2 = p_para.copy()
 
     para_M['M'] += p_delta_M
-    para_eta['eta'] += p_delta_eta
+    # Keep the finite-difference point inside the physical eta domain
+    # (0 < eta <= 1/4).  Near equal masses, a forward step can cross eta=1/4
+    # and make eta_M_to_m1_m2 evaluate sqrt(1 - 4*eta) on a negative value.
+    eta_step = p_delta_eta
+    if p_para['eta'] + eta_step >= 0.25:
+        para_eta['eta'] -= eta_step
+        eta_step = -eta_step
+    else:
+        para_eta['eta'] += eta_step
     para_x1['x1'] += p_delta_x1
     para_x2['x2'] += p_delta_x2
 
@@ -229,7 +263,7 @@ def get_h_par(p_para, p_delta):
 
     p_D_l = p_para['D_l']
     p_iota = p_para['iota']
-    
+
     p_h, _, _, _, _, _, hp22, hp21, hp33, hp32, hp44, p_f = get_waveform_lm(p_para)
     p_h_M, _, _, _, _, _, _, _, _, _, _, _ = get_waveform_lm(para_M)
     p_h_eta, _, _, _, _, _, _, _, _, _, _, _ = get_waveform_lm(para_eta)
@@ -239,9 +273,9 @@ def get_h_par(p_para, p_delta):
     # p_h_eta0, _, _, _, _, _, _, _, _, _, _, _ = get_waveform_lm(para_eta0)
     # p_h_x10, _, _, _, _, _, _, _, _, _, _, _ = get_waveform_lm(para_x10)
     # p_h_x20, _, _, _, _, _, _, _, _, _, _, _ = get_waveform_lm(para_x20)
-    
+
     p_h_par_M = par(p_h_M, p_h, p_delta_M)
-    p_h_par_eta = par(p_h_eta, p_h, p_delta_eta)
+    p_h_par_eta = par(p_h_eta, p_h, eta_step)
     # p_h_par_M = par(p_h_M, p_h_M0, p_delta_M)
     # p_h_par_eta = par(p_h_eta, p_h_eta0, p_delta_eta)
     # p_h_par_M = par(p_h_M, p_h_M0, 2*p_delta_M)
@@ -324,23 +358,18 @@ def quaddiypara(func1, func2, p_f, p_para, p_Sn_dector):
 # 信噪比
 def snr(p_para, p_Sn_dector):
     """计算单探测器匹配滤波信噪比。"""
-    p_h, _, _, _, _, _, _, _, _, _, _, p_f = get_waveform_lm(p_para)
-    q = 0
-    lenth = len(p_f)
+    p_h, p_f = get_waveform_lm_gr(p_para)
     p_deltaF = p_para['deltaF']
-    for i in range(lenth):
-        q += (p_h[i] * p_h[i].conjugate()) * 4 / p_Sn_dector(p_f[i]) * p_deltaF
-    return np.sqrt(q.real)
+    integrand = 4.0 * np.abs(p_h) ** 2 / p_Sn_dector(p_f)
+    return np.sqrt(np.sum(integrand) * p_deltaF)
 
 def snr_two(p_para, p_Sn_dector1, p_Sn_dector2):
     """计算两个探测器联合噪声权重下的信噪比。"""
-    p_h, _, _, _, _, _, _, _, _, _, _, p_f = get_waveform_lm(p_para)
-    q = 0
-    lenth = len(p_f)
+    p_h, p_f = get_waveform_lm_gr(p_para)
     p_deltaF = p_para['deltaF']
-    for i in range(lenth):
-        q += (p_h[i] * p_h[i].conjugate()) * 4 * (1 / p_Sn_dector1(p_f[i]) + 1 / p_Sn_dector2(p_f[i])) * p_deltaF
-    return np.sqrt(q.real)
+    inverse_noise = 1.0 / p_Sn_dector1(p_f) + 1.0 / p_Sn_dector2(p_f)
+    integrand = 4.0 * np.abs(p_h) ** 2 * inverse_noise
+    return np.sqrt(np.sum(integrand) * p_deltaF)
 
 # fisher矩阵
 def fisher_matrix(para, para_delta, p_Sn_dector):
@@ -552,7 +581,7 @@ def get_detecror_parameters(p_detector):
         p_delta_x1_n = 1e-5
         p_delta_x2_n = 1e-5
     else:
-        print('请重新选择探测器')
+        raise ValueError(f'Unknown detector: {p_detector}')
     return p_f_D_low, p_f_D_high, p_M_low_n, p_M_high_n, p_D_l_low_n, p_D_l_len_n, p_Sn_dector, p_delta_M_n, p_delta_eta_n, p_delta_x1_n, p_delta_x2_n
 
 
